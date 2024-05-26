@@ -1,0 +1,9 @@
+[package]
+name = "cache_fr"
+version = "0.1.0"
+edition = "2021"
+[lib]
+name="cache_fr"
+path="src/lib.rs"
+
+[dependencies]
