@@ -1,0 +1,28 @@
+syntax = "proto3";
+package commands_proto;
+
+service Commands {
+    rpc Get (StrKey) returns (StrValue);
+    rpc Set (SetRequest) returns (SetResponse);
+}
+
+message StrKey {
+    string key = 1;
+}
+
+message StrValue {
+    string value = 1;
+}
+
+message SetRequest {
+    string key = 1;
+    string value = 2;
+    bool only_if_not_exists = 3;
+    uint64 expiry_timestamp_micros = 4;
+    bool return_value = 5;
+}
+
+message SetResponse {
+    bool success = 1;
+    optional StrValue value = 2;
+}

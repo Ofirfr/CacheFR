@@ -1,14 +1,14 @@
+use crate::structs::{add_to_map, get_from_map, CacheFRKey, CacheFRMap, CacheFRValue};
 use std::{
     collections::HashMap,
     thread,
     time::{self, UNIX_EPOCH},
 };
 
-use cache_fr::{add_to_map, get_from_map, MainMap, MapValue};
 #[test]
 fn test_integration_expiry_on_keys() {
     let mut map = HashMap::new();
-    let mut main_map = MainMap { map: &mut map };
+    let mut main_map = CacheFRMap { map: &mut map };
 
     let key = "my_best_key";
     let value = "has_the_best_value";
@@ -24,7 +24,7 @@ fn test_integration_expiry_on_keys() {
     // key should still exist
     assert_eq!(
         get_from_map(&mut main_map, key),
-        Some(MapValue {
+        Some(CacheFRValue {
             value,
             expiry_timestamp_micros: now_plus_a_second
         })
