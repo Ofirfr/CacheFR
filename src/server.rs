@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use structs::CacheFRMap;
 use tonic::{transport::Server, Request, Response, Status};
-mod commands;
-mod structs;
+pub mod commands;
+pub mod structs;
 
 use commands::get::get_from_map;
 use commands::set::set_value_in_map;
 
 use commands_proto::commands_server::{Commands, CommandsServer};
-use commands_proto::{SetRequest, SetResponse, StrKey, StrValue};
+use commands_proto::{Key, SetRequest, SetResponse, Value};
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 
@@ -19,41 +19,32 @@ pub mod commands_proto {
 
 #[tonic::async_trait]
 impl Commands for CacheFRMap {
-    async fn get(&self, request: Request<StrKey>) -> Result<Response<StrValue>, Status> {
-        let key = request.into_inner().key;
-        match get_from_map(&self, key).await {
-            Some(value) => Ok(Response::new(StrValue {
-                value: value.value.to_string(),
-            })),
-            None => Ok(Response::new(StrValue {
-                value: "".to_string(),
-            })),
-        }
+    async fn get(&self, request: Request<Key>) -> Result<Response<Value>, Status> {
+        let key = request.into_inner();
+        Result::Ok(Response::new(get_from_map(&self, key).await.unwrap()))
     }
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetResponse>, Status> {
-        let (key, value, only_if_not_exists, expiry_timestamp_micros) = {
+        let (key, value, only_if_not_exists, return_value) = {
             let request = request.into_inner();
             (
-                request.key,
-                request.value,
+                request.key.expect("key is required"),
+                request.value.expect("Value is required"),
                 request.only_if_not_exists,
-                request.expiry_timestamp_micros,
+                request.return_value,
             )
         };
-        match set_value_in_map(
-            &self,
-            key,
-            value,
-            only_if_not_exists,
-            expiry_timestamp_micros,
-        )
-        .await
-        {
-            true => Ok(Response::new(SetResponse {
+        match set_value_in_map(&self, key, value, only_if_not_exists).await {
+            (true, value) => Ok(Response::new(SetResponse {
                 success: true,
-                value: None,
+                value: {
+                    if return_value {
+                        Some(value)
+                    } else {
+                        None
+                    }
+                },
             })),
-            false => Ok(Response::new(SetResponse {
+            (false, _) => Ok(Response::new(SetResponse {
                 success: false,
                 value: None,
             })),

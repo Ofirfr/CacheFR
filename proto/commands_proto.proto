@@ -2,27 +2,49 @@ syntax = "proto3";
 package commands_proto;
 
 service Commands {
-    rpc Get (StrKey) returns (StrValue);
-    rpc Set (SetRequest) returns (SetResponse);
+  rpc Get(Key) returns (Value);
+  rpc Set(SetRequest) returns (SetResponse);
 }
 
-message StrKey {
-    string key = 1;
+message StrKey { string key = 1; }
+
+message BytesKey { bytes key = 1; }
+
+message StrValue { string value = 1; }
+
+message IntValue {
+  oneof value {
+    int32 new_value = 1;
+    int32 incr_by = 2;
+  }
 }
 
-message StrValue {
-    string value = 1;
+message ErrValue { string err_message = 1; }
+
+message Key {
+  oneof key {
+    StrKey string_key = 1;
+    BytesKey bytes_key = 2;
+  }
+}
+
+message Value {
+  oneof value {
+    ErrValue err_value = 1;
+    StrValue string_value = 2;
+    IntValue int_value = 3;
+  }
+  uint64 expiry_timestamp_micros = 4;
 }
 
 message SetRequest {
-    string key = 1;
-    string value = 2;
-    bool only_if_not_exists = 3;
-    uint64 expiry_timestamp_micros = 4;
-    bool return_value = 5;
+  Key key = 1;
+  Value value = 2;
+  bool only_if_not_exists = 3;
+  bool return_value = 4;
 }
 
 message SetResponse {
-    bool success = 1;
-    optional StrValue value = 2;
+  bool success = 1;
+  optional Value value = 2;
 }
