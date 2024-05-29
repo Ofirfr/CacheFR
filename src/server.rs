@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use cache_fr::commands::int_operations::int_increment;
-use cache_fr::commands_proto::fr_key::Key;
 use cache_fr::consts::ERROR_EXPIRY;
 use cache_fr::structs::CacheFRMap;
 use cache_fr::{commands, commands_proto};
