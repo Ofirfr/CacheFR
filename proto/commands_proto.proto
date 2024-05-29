@@ -2,49 +2,43 @@ syntax = "proto3";
 package commands_proto;
 
 service Commands {
-  rpc Get(Key) returns (Value);
-  rpc Set(SetRequest) returns (SetResponse);
+  rpc Get(FrKey) returns (FrResponse);
+  rpc Set(SetRequest) returns (FrResponse);
+  rpc IntOperation(IntCommand) returns (FrResponse);
 }
 
-message StrKey { string key = 1; }
-
-message BytesKey { bytes key = 1; }
-
-message StrValue { string value = 1; }
-
-message IntValue {
-  oneof value {
-    int32 new_value = 1;
-    int32 incr_by = 2;
-  }
-}
-
-message ErrValue { string err_message = 1; }
-
-message Key {
+message FrKey {
   oneof key {
-    StrKey string_key = 1;
-    BytesKey bytes_key = 2;
+    string string_key = 1;
+    bytes bytes_key = 2;
   }
 }
 
-message Value {
+message FrValue {
   oneof value {
-    ErrValue err_value = 1;
-    StrValue string_value = 2;
-    IntValue int_value = 3;
+    string err_value = 1;
+    string string_value = 2;
+    int32 int_value = 3;
   }
-  uint64 expiry_timestamp_micros = 4;
+  uint64 expiry_timestamp_micros = 5;
 }
 
 message SetRequest {
-  Key key = 1;
-  Value value = 2;
+  FrKey key = 1;
+  FrValue value = 2;
   bool only_if_not_exists = 3;
   bool return_value = 4;
 }
 
-message SetResponse {
+message FrResponse {
   bool success = 1;
-  optional Value value = 2;
+  optional FrValue value = 2;
+}
+
+message IntCommand {
+  FrKey key = 1;
+  oneof command {
+    int32 increment_by = 2;
+    int32 multiply_by = 3;
+  }
 }

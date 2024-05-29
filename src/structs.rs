@@ -2,18 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::commands_proto::{Key, Value};
+use crate::commands_proto::{FrKey, FrValue};
 pub struct CacheFRMap {
-    pub map: Arc<RwLock<HashMap<Key, Value>>>,
+    pub map: Arc<RwLock<HashMap<FrKey, FrValue>>>,
 }
-
-// #[derive(Hash, Eq, PartialEq, Debug, Clone)]
-// pub struct CacheFRValue {
-//     pub value: String,
-//     pub expiry_timestamp_micros: u64,
-// }
-
-// #[derive(Hash, Eq, PartialEq, Debug)]
-// pub struct CacheFRKey {
-//     pub key: String,
-// }

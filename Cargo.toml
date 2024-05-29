@@ -3,9 +3,6 @@ name = "cache_fr"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-path="src/server.rs"
-
 [[test]]
 name="testing_test_test"
 path="tests/integration_test.rs"
@@ -21,7 +18,7 @@ path="src/example_client.rs"
 [dependencies]
 tonic = "0.7"
 prost = "0.10"
-tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "full"] }
 
 [build-dependencies]
 tonic-build = "0.7"

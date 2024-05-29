@@ -1,31 +1,34 @@
-use crate::commands_proto::{ErrValue, Key, Value};
-pub use crate::structs::CacheFRMap;
+use crate::{
+    commands_proto::{FrKey, FrValue},
+    consts::ERROR_EXPIRY,
+    structs::CacheFRMap,
+};
 pub async fn set_value_in_map<'a>(
     main_map: &CacheFRMap,
-    key: Key,
-    value: Value,
+    key: FrKey,
+    value: FrValue,
     only_if_not_exists: bool,
-) -> (bool, Value) {
+) -> (bool, FrValue) {
+    // Check only-if-exists-constraint
     if only_if_not_exists && main_map.map.read().await.contains_key(&key) {
         return (
             false,
-            Value {
-                value: Some(crate::commands_proto::value::Value::ErrValue(ErrValue {
-                    err_message: "Key already exists, command set to not override".to_string(),
-                })),
-                expiry_timestamp_micros: 0,
+            FrValue {
+                value: Some(crate::commands_proto::fr_value::Value::ErrValue(
+                    String::from("Key already exists"),
+                )),
+                expiry_timestamp_micros: ERROR_EXPIRY,
             },
         );
     }
-    main_map.map.write().await.insert(key.clone(), value);
-    (
-        true,
+
+    // Write block for minimal blocking time
+    {
         main_map
             .map
-            .read()
+            .write()
             .await
-            .get(&key)
-            .expect("There should be a value")
-            .clone(),
-    )
+            .insert(key.clone(), value.clone());
+    }
+    return (true, value);
 }
