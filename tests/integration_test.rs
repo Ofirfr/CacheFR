@@ -9,6 +9,7 @@ mod tests {
     use cache_fr::commands_proto::FrValue;
     use cache_fr::consts::NO_EXPIRY;
     use cache_fr::structs::CacheFRMap;
+    use std::iter::Sum;
     use std::{
         collections::HashMap,
         sync::Arc,
@@ -68,8 +69,9 @@ mod tests {
                 "my best key".to_string(),
             )),
         };
+        let initial_int_value = 100;
         let value = FrValue {
-            value: Some(commands_proto::fr_value::Value::IntValue(100)),
+            value: Some(commands_proto::fr_value::Value::IntValue(initial_int_value)),
             expiry_timestamp_micros: NO_EXPIRY,
         };
         // Set value and check that it is set
@@ -79,17 +81,34 @@ mod tests {
             Some(value.clone())
         );
 
-        // Increment value multiple times and check that it is incremented right
-        let mut sum = 100;
-        for i in 0..100 {
-            sum += i;
-            int_increment(&mut main_map, key.clone(), i).await;
+        // Increment value multiple times in different threads
+        let mut handles = vec![];
+        let num_of_threads = 10;
+        for i in 0..num_of_threads {
+            // Clone items for each thread
+            let mut main_map_clone = CacheFRMap {
+                map: Arc::clone(&main_map.map),
+            };
+            let key_clone = key.clone();
+
+            let handle = tokio::spawn(async move {
+                int_increment(&mut main_map_clone, key_clone, i).await;
+            });
+            handles.push(handle);
         }
 
+        // Wait for all tasks to complete
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        let expected_sum = initial_int_value + num_of_threads * (num_of_threads - 1) / 2;
+
+        // Get value and check that the value was incremented correctly
         assert_eq!(
             get::get_from_map(&mut main_map, key.clone()).await,
             Some(FrValue {
-                value: Some(commands_proto::fr_value::Value::IntValue(sum)),
+                value: Some(commands_proto::fr_value::Value::IntValue(expected_sum)),
                 expiry_timestamp_micros: NO_EXPIRY
             })
         );
