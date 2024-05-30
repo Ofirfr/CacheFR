@@ -7,6 +7,7 @@ use cache_fr::{commands, commands_proto};
 use commands::get::get_from_map;
 use commands::set::set_value_in_map;
 
+use dashmap::DashMap;
 use tonic::{transport::Server, Request, Response, Status};
 
 use commands_proto::commands_server::{Commands, CommandsServer};
@@ -90,9 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting server...");
     let addr = "[::1]:50051".parse()?;
     let cache_fr_service = CacheFRMapImpl {
-        cache_fr_map: CacheFRMap {
-            map: Arc::new(RwLock::new(HashMap::new())),
-        },
+        cache_fr_map: Arc::new(DashMap::new()),
     };
 
     Server::builder()

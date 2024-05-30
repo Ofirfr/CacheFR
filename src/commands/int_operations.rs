@@ -1,7 +1,7 @@
 use crate::{
     commands_proto::{self, FrKey, FrValue},
     consts::ERROR_EXPIRY,
-    structs::CacheFRMap,
+    structs::{CacheFRMap, StoredFrValueWithExpiry},
 };
 
 use super::get::get_from_map;
@@ -27,7 +27,10 @@ pub async fn int_increment(main_map: &CacheFRMap, key: FrKey, amount: i32) -> Op
                 },
             };
             {
-                main_map.map.write().await.insert(key, new_value.clone());
+                main_map.insert(
+                    key,
+                    StoredFrValueWithExpiry::from_fr_value(new_value.clone()),
+                );
             }
 
             Some(new_value)

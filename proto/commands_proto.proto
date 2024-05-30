@@ -19,9 +19,15 @@ message FrValue {
     string err_value = 1;
     string string_value = 2;
     int32 int_value = 3;
+    SetValue set_value = 4;
+    ListValue list_value = 5;
   }
-  uint64 expiry_timestamp_micros = 5;
+  uint64 expiry_timestamp_micros = 6;
 }
+
+message SetValue { repeated FrValue values = 1; }
+
+message ListValue { repeated FrValue values = 1; }
 
 message SetRequest {
   FrKey key = 1;

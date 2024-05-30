@@ -19,6 +19,7 @@ path="src/example_client.rs"
 tonic = "0.7"
 prost = "0.10"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "full"] }
+dashmap = "5.5.3"
 
 [build-dependencies]
 tonic-build = "0.7"

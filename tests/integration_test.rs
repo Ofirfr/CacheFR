@@ -9,20 +9,15 @@ mod tests {
     use cache_fr::commands_proto::FrValue;
     use cache_fr::consts::NO_EXPIRY;
     use cache_fr::structs::CacheFRMap;
-    use std::iter::Sum;
+    use dashmap::DashMap;
     use std::{
-        collections::HashMap,
         sync::Arc,
         thread,
         time::{self, UNIX_EPOCH},
     };
-    use tokio::sync::RwLock;
     #[tokio::test]
     async fn test_integration_expiry_on_keys() {
-        let map = HashMap::new();
-        let mut main_map = CacheFRMap {
-            map: Arc::new(RwLock::new(map)),
-        };
+        let mut main_map: CacheFRMap = Arc::new(DashMap::new());
 
         let now_plus_a_second: u64 = (time::SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -55,15 +50,12 @@ mod tests {
 
         // key should be expired
         assert_eq!(get::get_from_map(&mut main_map, key.clone()).await, None);
-        assert_eq!(0, main_map.map.read().await.keys().len());
+        assert_eq!(0, main_map.len());
     }
 
     #[tokio::test]
     async fn test_integration_int_increment() {
-        let map = HashMap::new();
-        let mut main_map = CacheFRMap {
-            map: Arc::new(RwLock::new(map)),
-        };
+        let mut main_map: CacheFRMap = Arc::new(DashMap::new());
         let key: FrKey = FrKey {
             key: Some(commands_proto::fr_key::Key::StringKey(
                 "my best key".to_string(),
@@ -86,9 +78,7 @@ mod tests {
         let num_of_threads = 10;
         for i in 0..num_of_threads {
             // Clone items for each thread
-            let mut main_map_clone = CacheFRMap {
-                map: Arc::clone(&main_map.map),
-            };
+            let mut main_map_clone = Arc::clone(&main_map);
             let key_clone = key.clone();
 
             let handle = tokio::spawn(async move {
@@ -103,6 +93,7 @@ mod tests {
         }
 
         let expected_sum = initial_int_value + num_of_threads * (num_of_threads - 1) / 2;
+        println!("{}", expected_sum);
 
         // Get value and check that the value was incremented correctly
         assert_eq!(

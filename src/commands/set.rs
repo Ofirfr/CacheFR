@@ -1,7 +1,7 @@
 use crate::{
     commands_proto::{FrKey, FrValue},
     consts::ERROR_EXPIRY,
-    structs::CacheFRMap,
+    structs::{CacheFRMap, StoredFrValueWithExpiry},
 };
 pub async fn set_value_in_map<'a>(
     main_map: &CacheFRMap,
@@ -10,7 +10,7 @@ pub async fn set_value_in_map<'a>(
     only_if_not_exists: bool,
 ) -> (bool, FrValue) {
     // Check only-if-exists-constraint
-    if only_if_not_exists && main_map.map.read().await.contains_key(&key) {
+    if only_if_not_exists && main_map.contains_key(&key) {
         return (
             false,
             FrValue {
@@ -24,11 +24,10 @@ pub async fn set_value_in_map<'a>(
 
     // Write block for minimal blocking time
     {
-        main_map
-            .map
-            .write()
-            .await
-            .insert(key.clone(), value.clone());
+        main_map.insert(
+            key.clone(),
+            StoredFrValueWithExpiry::from_fr_value(value.clone()),
+        );
     }
     return (true, value);
 }
