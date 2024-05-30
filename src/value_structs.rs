@@ -2,11 +2,12 @@ use crate::commands_proto::{self, FrKey, FrValue};
 use dashmap::{DashMap, DashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+
 pub type CacheFRMap = Arc<DashMap<FrKey, StoredFrValueWithExpiry>>;
 
 #[derive(Clone)]
-struct WrappedDashSet {
-    wrapped_set: DashSet<StoredFrValueWithExpiry>,
+pub struct WrappedDashSet {
+    pub wrapped_set: DashSet<StoredFrValueWithExpiry>,
 }
 
 impl Eq for WrappedDashSet {}
@@ -118,51 +119,51 @@ impl StoredFrValueWithExpiry {
         }
     }
 
-    pub fn as_int(&self) -> &i32 {
+    pub fn as_int(&self) -> Result<&i32, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::IntValue(v),
             ..  // Ignore expiry_timestamp_micros
         } = self
         {
-            v
+            Ok(v)
         } else {
-            panic!("Not IntValue!");
+            Err("Not IntValue!")
         }
     }
 
-    pub fn as_string(&self) -> &String {
+    pub fn as_string(&self) -> Result<&String, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::StringValue(v),
             ..  // Ignore expiry_timestamp_micros
         } = self
         {
-            v
+            Ok(v)
         } else {
-            panic!("Not StringValue!");
+            Err("Not StringValue!")
         }
     }
 
-    pub fn as_set(&self) -> &DashSet<StoredFrValueWithExpiry> {
+    pub fn as_set(&self) -> Result<&DashSet<StoredFrValueWithExpiry>, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::SetValue(v),
             ..  // Ignore expiry_timestamp_micros
         } = self
         {
-            &v.wrapped_set
+            Ok(&v.wrapped_set)
         } else {
-            panic!("Not SetValue!");
+            Err("Not SetValue!")
         }
     }
 
-    pub fn as_list(&self) -> &Vec<StoredFrValueWithExpiry> {
+    pub fn as_list(&self) -> Result<&Vec<StoredFrValueWithExpiry>, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::ListValue(v),
             ..  // Ignore expiry_timestamp_micros
         } = self
         {
-            v
+            Ok(v)
         } else {
-            panic!("Not ListValue!");
+            Err("Not ListValue!")
         }
     }
 }

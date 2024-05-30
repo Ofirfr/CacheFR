@@ -1,7 +1,7 @@
 use crate::{
     commands_proto::{FrKey, FrValue},
     consts::NO_EXPIRY,
-    structs::{CacheFRMap, StoredFrValueWithExpiry},
+    value_structs::{CacheFRMap, StoredFrValueWithExpiry},
 };
 use std::{
     sync::Arc,
@@ -20,7 +20,7 @@ pub async fn read_from_map_block(
     }
 }
 
-pub async fn get_from_map(main_map: &CacheFRMap, key: FrKey) -> Option<FrValue> {
+pub async fn get_from_map(main_map: &CacheFRMap, key: FrKey) -> Option<StoredFrValueWithExpiry> {
     let result: Option<StoredFrValueWithExpiry> = read_from_map_block(main_map, key.clone()).await;
     match result {
         Some(map_value) => {
@@ -32,7 +32,7 @@ pub async fn get_from_map(main_map: &CacheFRMap, key: FrKey) -> Option<FrValue> 
                         .as_micros() as u64
             {
                 // key is alive
-                Some((map_value).to_fr_value())
+                Some(map_value)
             } else {
                 // key has expired
                 {

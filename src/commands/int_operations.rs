@@ -1,7 +1,7 @@
 use crate::{
     commands_proto::{self, FrKey, FrValue},
     consts::ERROR_EXPIRY,
-    structs::{CacheFRMap, StoredFrValueWithExpiry},
+    value_structs::{CacheFRMap, StoredFrValueWithExpiry},
 };
 
 use super::get::get_from_map;
@@ -11,18 +11,15 @@ pub async fn int_increment(main_map: &CacheFRMap, key: FrKey, amount: i32) -> Op
 
     match maybe_old_value {
         Some(old_value) => {
-            let new_value = old_value.clone().value;
-            let new_value = match new_value {
-                Some(commands_proto::fr_value::Value::IntValue(old_int_value)) => FrValue {
+            let new_value = match old_value.as_int() {
+                Ok(old_int_value) => FrValue {
                     value: Some(commands_proto::fr_value::Value::IntValue(
                         old_int_value + amount,
                     )),
                     expiry_timestamp_micros: old_value.expiry_timestamp_micros,
                 },
-                _ => FrValue {
-                    value: Some(commands_proto::fr_value::Value::ErrValue(
-                        "Current value is not an integer".to_string(),
-                    )),
+                Err(msg) => FrValue {
+                    value: Some(commands_proto::fr_value::Value::ErrValue(msg.to_string())),
                     expiry_timestamp_micros: ERROR_EXPIRY,
                 },
             };

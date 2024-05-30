@@ -1,7 +1,7 @@
 use crate::{
     commands_proto::{FrKey, FrValue},
     consts::ERROR_EXPIRY,
-    structs::{CacheFRMap, StoredFrValueWithExpiry},
+    value_structs::{CacheFRMap, StoredFrValueWithExpiry},
 };
 pub async fn set_value_in_map<'a>(
     main_map: &CacheFRMap,

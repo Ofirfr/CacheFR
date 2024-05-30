@@ -1,23 +1,25 @@
 #[cfg(test)]
 mod tests {
     extern crate cache_fr;
-    use cache_fr::commands::get;
-    use cache_fr::commands::int_operations::int_increment;
-    use cache_fr::commands::set;
     use cache_fr::commands_proto;
+    use cache_fr::commands_proto::commands_server::Commands;
     use cache_fr::commands_proto::FrKey;
+    use cache_fr::commands_proto::FrResponse;
     use cache_fr::commands_proto::FrValue;
+    use cache_fr::commands_proto::SetRequest;
     use cache_fr::consts::NO_EXPIRY;
-    use cache_fr::structs::CacheFRMap;
+    use cache_fr::main_map_impl::CacheFRMapImpl;
     use dashmap::DashMap;
     use std::{
         sync::Arc,
         thread,
         time::{self, UNIX_EPOCH},
     };
+    use tonic::Code;
+    use tonic::Request;
     #[tokio::test]
     async fn test_integration_expiry_on_keys() {
-        let mut main_map: CacheFRMap = Arc::new(DashMap::new());
+        let cache_fr_service: CacheFRMapImpl = Arc::new(DashMap::new());
 
         let now_plus_a_second: u64 = (time::SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -38,38 +40,76 @@ mod tests {
             expiry_timestamp_micros: now_plus_a_second,
         };
 
+        let set_request = SetRequest {
+            key: Some(key.clone()),
+            value: Some(value.clone()),
+            only_if_not_exists: false,
+            return_value: false,
+        };
+
         // add key that expires in 1 second
-        set::set_value_in_map(&mut main_map, key.clone(), value.clone(), false).await;
+        cache_fr_service.set(Request::new(set_request)).await;
         // key should still exist
+
+        // match first_get
         assert_eq!(
-            get::get_from_map(&mut main_map, key.clone()).await,
-            Some(value.clone())
+            cache_fr_service
+                .get(Request::new(key.clone()))
+                .await
+                .unwrap()
+                .into_inner(),
+            FrResponse {
+                value: Some(value.clone()),
+                success: true
+            }
         );
 
         thread::sleep(time::Duration::from_secs(1));
 
         // key should be expired
-        assert_eq!(get::get_from_map(&mut main_map, key.clone()).await, None);
-        assert_eq!(0, main_map.len());
+        assert_eq!(
+            cache_fr_service
+                .get(Request::new(key.clone()))
+                .await
+                .expect_err("Key should be expired")
+                .code(),
+            Code::NotFound
+        );
+        assert_eq!(0, cache_fr_service.len());
     }
 
     #[tokio::test]
     async fn test_integration_int_increment() {
-        let mut main_map: CacheFRMap = Arc::new(DashMap::new());
+        let cache_fr_service: CacheFRMapImpl = Arc::new(DashMap::new());
+
         let key: FrKey = FrKey {
             key: Some(commands_proto::fr_key::Key::StringKey(
                 "my best key".to_string(),
             )),
         };
+
         let initial_int_value = 100;
         let value = FrValue {
             value: Some(commands_proto::fr_value::Value::IntValue(initial_int_value)),
             expiry_timestamp_micros: NO_EXPIRY,
         };
+
+        let set_request = SetRequest {
+            key: Some(key.clone()),
+            value: Some(value.clone()),
+            only_if_not_exists: false,
+            return_value: false,
+        };
+
         // Set value and check that it is set
-        set::set_value_in_map(&mut main_map, key.clone(), value.clone(), false).await;
+        cache_fr_service.set(Request::new(set_request)).await;
         assert_eq!(
-            get::get_from_map(&mut main_map, key.clone()).await,
+            cache_fr_service
+                .get(Request::new(key.clone()))
+                .await
+                .unwrap()
+                .into_inner()
+                .value,
             Some(value.clone())
         );
 
@@ -78,11 +118,17 @@ mod tests {
         let num_of_threads = 10;
         for i in 0..num_of_threads {
             // Clone items for each thread
-            let mut main_map_clone = Arc::clone(&main_map);
+            let arc_cache_fr_service: CacheFRMapImpl = Arc::clone(&cache_fr_service);
             let key_clone = key.clone();
 
             let handle = tokio::spawn(async move {
-                int_increment(&mut main_map_clone, key_clone, i).await;
+                let int_increment_command = commands_proto::IntCommand {
+                    key: Some(key_clone),
+                    command: Some(commands_proto::int_command::Command::IncrementBy(i)),
+                };
+                arc_cache_fr_service
+                    .int_operation(Request::new(int_increment_command))
+                    .await
             });
             handles.push(handle);
         }
@@ -97,7 +143,12 @@ mod tests {
 
         // Get value and check that the value was incremented correctly
         assert_eq!(
-            get::get_from_map(&mut main_map, key.clone()).await,
+            cache_fr_service
+                .get(Request::new(key.clone()))
+                .await
+                .unwrap()
+                .into_inner()
+                .value,
             Some(FrValue {
                 value: Some(commands_proto::fr_value::Value::IntValue(expected_sum)),
                 expiry_timestamp_micros: NO_EXPIRY
