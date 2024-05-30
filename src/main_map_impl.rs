@@ -6,9 +6,8 @@ use crate::{
         set::set_value_in_map,
     },
     commands_proto::{
-        self, commands_server::Commands, FrKey, FrResponse, FrValue, IntCommand, SetRequest,
+        self, commands_server::Commands, FrKey, FrResponse, IntCommand, SetRequest,
     },
-    consts::ERROR_EXPIRY,
     value_structs::CacheFRMap,
 };
 

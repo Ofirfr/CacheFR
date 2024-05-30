@@ -1,12 +1,11 @@
 use dashmap::mapref::one::RefMut;
 
 use crate::{
-    commands_proto::{FrKey, FrValue},
+    commands_proto::{FrKey},
     consts::NO_EXPIRY,
     value_structs::{CacheFRMap, StoredFrValueWithExpiry},
 };
 use std::{
-    sync::Arc,
     time::{self, UNIX_EPOCH},
 };
 

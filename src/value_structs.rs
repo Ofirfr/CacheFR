@@ -1,5 +1,4 @@
 use crate::commands_proto::{self, FrKey, FrValue};
-use dashmap::mapref::one::RefMut;
 use dashmap::{DashMap, DashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;

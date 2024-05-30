@@ -1,7 +1,6 @@
 use crate::{
     commands_proto::{self, FrKey, FrValue},
-    consts::ERROR_EXPIRY,
-    value_structs::{CacheFRMap, StoredFrValue, StoredFrValueWithExpiry},
+    value_structs::{CacheFRMap, StoredFrValue},
 };
 
 use super::get::get_from_map;
