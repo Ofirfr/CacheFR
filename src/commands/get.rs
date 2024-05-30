@@ -1,12 +1,11 @@
+use std::time::{self, UNIX_EPOCH};
+
 use dashmap::mapref::one::RefMut;
 
 use crate::{
-    commands_proto::{FrKey},
+    commands_proto::FrKey,
     consts::NO_EXPIRY,
     value_structs::{CacheFRMap, StoredFrValueWithExpiry},
-};
-use std::{
-    time::{self, UNIX_EPOCH},
 };
 
 pub async fn get_from_map(

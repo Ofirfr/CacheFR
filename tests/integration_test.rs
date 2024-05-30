@@ -48,7 +48,7 @@ mod tests {
             return_value: false,
         };
         // add key that expires in 1 second
-        cache_fr_service.set(Request::new(set_request)).await;
+        let _ = cache_fr_service.set(Request::new(set_request)).await;
         // key should still exist
 
         // match first_get
@@ -102,7 +102,7 @@ mod tests {
         };
 
         // Set value and check that it is set
-        cache_fr_service.set(Request::new(set_request)).await;
+        let _ = cache_fr_service.set(Request::new(set_request)).await;
         assert_eq!(
             cache_fr_service
                 .get(Request::new(key.clone()))
@@ -116,7 +116,7 @@ mod tests {
         // Increment value multiple times in different threads
         let mut handles = vec![];
         let num_of_threads = 10;
-        for i in 0..num_of_threads {
+        for _ in 0..num_of_threads {
             // Clone items for each thread
             let arc_cache_fr_service: CacheFRMapImpl = Arc::clone(&cache_fr_service);
             let key_clone = key.clone();
@@ -138,7 +138,7 @@ mod tests {
 
         // Wait for all tasks to complete
         for handle in handles {
-            handle.await;
+            let _ = handle.await;
         }
 
         let expected_sum =
@@ -188,7 +188,7 @@ mod tests {
         };
 
         // Set value and check that it is set
-        cache_fr_service.set(Request::new(set_request)).await;
+        let _ = cache_fr_service.set(Request::new(set_request)).await;
         assert_eq!(
             cache_fr_service
                 .get(Request::new(key.clone()))
@@ -202,7 +202,7 @@ mod tests {
         // Append to list multiple times from different threads
         let mut handles = vec![];
         let num_of_threads = 10;
-        for i in 0..num_of_threads {
+        for _ in 0..num_of_threads {
             // Clone items for each thread
             let arc_cache_fr_service: CacheFRMapImpl = Arc::clone(&cache_fr_service);
             let key_clone = key.clone();
@@ -227,7 +227,7 @@ mod tests {
 
         // Wait for all tasks to complete
         for handle in handles {
-            handle.await;
+            let _ = handle.await;
         }
 
         // println!("{}", expected_sum);
