@@ -1,3 +1,5 @@
+use dashmap::mapref::one::RefMut;
+
 use crate::{
     commands_proto::{FrKey, FrValue},
     consts::NO_EXPIRY,
@@ -8,20 +10,14 @@ use std::{
     time::{self, UNIX_EPOCH},
 };
 
-pub async fn read_from_map_block(
+pub async fn get_from_map(
     main_map: &CacheFRMap,
     key: FrKey,
-) -> Option<StoredFrValueWithExpiry> {
-    let main_map_clone = Arc::clone(&main_map);
-    let result = main_map_clone.get(&key);
-    match result {
-        Some(map_value) => Some(map_value.to_owned()),
-        None => None,
-    }
-}
-
-pub async fn get_from_map(main_map: &CacheFRMap, key: FrKey) -> Option<StoredFrValueWithExpiry> {
-    let result: Option<StoredFrValueWithExpiry> = read_from_map_block(main_map, key.clone()).await;
+) -> Option<RefMut<FrKey, StoredFrValueWithExpiry>> {
+    let result: Option<RefMut<FrKey, StoredFrValueWithExpiry>> = {
+        // read block for minimal blocking time
+        main_map.get_mut(&key.clone())
+    };
     match result {
         Some(map_value) => {
             if map_value.expiry_timestamp_micros == NO_EXPIRY
@@ -35,6 +31,7 @@ pub async fn get_from_map(main_map: &CacheFRMap, key: FrKey) -> Option<StoredFrV
                 Some(map_value)
             } else {
                 // key has expired
+                std::mem::drop(map_value); // Drop pointer to avoid deadlock
                 {
                     main_map.remove(&key);
                 }

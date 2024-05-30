@@ -1,11 +1,12 @@
 use crate::commands_proto::{self, FrKey, FrValue};
+use dashmap::mapref::one::RefMut;
 use dashmap::{DashMap, DashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 pub type CacheFRMap = Arc<DashMap<FrKey, StoredFrValueWithExpiry>>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WrappedDashSet {
     pub wrapped_set: DashSet<StoredFrValueWithExpiry>,
 }
@@ -32,7 +33,7 @@ impl Hash for WrappedDashSet {
     }
 }
 
-#[derive(Eq, Hash, PartialEq, Clone)]
+#[derive(Eq, Hash, PartialEq, Clone, Debug)]
 pub enum StoredFrValue {
     IntValue(i32),
     StringValue(String),
@@ -40,7 +41,7 @@ pub enum StoredFrValue {
     ListValue(Vec<StoredFrValueWithExpiry>),
 }
 
-#[derive(Eq, Hash, PartialEq, Clone)]
+#[derive(Eq, Hash, PartialEq, Clone, Debug)]
 pub struct StoredFrValueWithExpiry {
     pub value: StoredFrValue,
     pub expiry_timestamp_micros: u64,
@@ -156,6 +157,18 @@ impl StoredFrValueWithExpiry {
     }
 
     pub fn as_list(&self) -> Result<&Vec<StoredFrValueWithExpiry>, &str> {
+        if let StoredFrValueWithExpiry {
+            value: StoredFrValue::ListValue(v),
+            ..  // Ignore expiry_timestamp_micros
+        } = self
+        {
+            Ok(v)
+        } else {
+            Err("Not ListValue!")
+        }
+    }
+
+    pub fn as_mut_list(&mut self) -> Result<&mut Vec<StoredFrValueWithExpiry>, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::ListValue(v),
             ..  // Ignore expiry_timestamp_micros

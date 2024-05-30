@@ -1,7 +1,10 @@
 use tonic::{Request, Response, Status};
 
 use crate::{
-    commands::{get::get_from_map, int_operations::int_increment, set::set_value_in_map},
+    commands::{
+        get::get_from_map, int_operations::int_increment, list_operations::list_append,
+        set::set_value_in_map,
+    },
     commands_proto::{
         self, commands_server::Commands, FrKey, FrResponse, FrValue, IntCommand, SetRequest,
     },
@@ -60,6 +63,25 @@ impl Commands for CacheFRMapImpl {
         match command {
             Some(commands_proto::int_command::Command::IncrementBy(increment_by)) => {
                 let result = int_increment(&self, key, increment_by).await;
+                return Result::Ok(Response::new(FrResponse {
+                    success: true,
+                    value: result,
+                }));
+            }
+            _ => Result::Err(Status::unimplemented("Not implemented")),
+        }
+    }
+    async fn list_operation(
+        &self,
+        request: Request<commands_proto::ListCommand>,
+    ) -> Result<Response<FrResponse>, Status> {
+        let (key, command) = {
+            let request = request.into_inner();
+            (request.key.expect("key is required"), request.command)
+        };
+        match command {
+            Some(commands_proto::list_command::Command::Append(append_value)) => {
+                let result = list_append(&self, key, append_value).await;
                 return Result::Ok(Response::new(FrResponse {
                     success: true,
                     value: result,

@@ -5,6 +5,7 @@ service Commands {
   rpc Get(FrKey) returns (FrResponse);
   rpc Set(SetRequest) returns (FrResponse);
   rpc IntOperation(IntCommand) returns (FrResponse);
+  rpc ListOperation(ListCommand) returns (FrResponse);
 }
 
 message FrKey {
@@ -46,5 +47,13 @@ message IntCommand {
   oneof command {
     int32 increment_by = 2;
     int32 multiply_by = 3;
+  }
+}
+
+message ListCommand {
+  FrKey key = 1;
+  oneof command {
+    FrValue append = 2;
+    int32 remove_at = 3;
   }
 }
