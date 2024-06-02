@@ -1,4 +1,3 @@
-use std::result;
 
 use tonic::{Request, Response, Status};
 
@@ -6,7 +5,7 @@ use crate::{
     commands::{
         get::get_from_map,
         int_operations::int_increment,
-        list_operations::{list_append, list_remove},
+        list_operations::{list_append},
         set::set_value_in_map,
         set_operations::{set_add, set_remove},
     },

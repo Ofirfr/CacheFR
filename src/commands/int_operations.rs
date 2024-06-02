@@ -19,7 +19,7 @@ pub async fn int_increment(
                 .map_err(|e| format!("Error while parsing value to int: {}", e))?;
             *stored_int += amount;
 
-            Ok(StoredAtomicValue::IntValue((*stored_int)))
+            Ok(StoredAtomicValue::IntValue(*stored_int))
         }
 
         None => Err("Key does not exist".to_string()),
