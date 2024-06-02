@@ -1,17 +1,16 @@
-
 use tonic::{Request, Response, Status};
 
 use crate::{
     commands::{
         get::get_from_map,
         int_operations::int_increment,
-        list_operations::{list_append},
+        list_operations::{list_append, list_remove_by_index, list_remove_by_value},
         set::set_value_in_map,
         set_operations::{set_add, set_remove},
     },
     commands_proto::{
-        self, commands_server::Commands, FrAtomicResponse, FrKey, FrResponse, IntCommand,
-        SetRequest,
+        self, atomic_fr_value, commands_server::Commands, AtomicFrValue, FrAtomicResponse, FrKey,
+        FrResponse, IntCommand, SetRequest,
     },
     value_structs::CacheFRMap,
 };
@@ -100,6 +99,26 @@ impl Commands for CacheFRMapImpl {
                 match result {
                     Ok(atomic_value) => Result::Ok(Response::new(FrAtomicResponse {
                         value: Some(atomic_value.to_atomic_fr_value()),
+                    })),
+                    Err(e) => Result::Err(Status::aborted(e)),
+                }
+            }
+            Some(commands_proto::list_command::Command::RemoveAt(remove_by_index)) => {
+                let result = list_remove_by_index(&self, key, remove_by_index).await;
+                match result {
+                    Ok(atomic_value) => Result::Ok(Response::new(FrAtomicResponse {
+                        value: Some(atomic_value.to_atomic_fr_value()),
+                    })),
+                    Err(e) => Result::Err(Status::aborted(e)),
+                }
+            }
+            Some(commands_proto::list_command::Command::RemoveAll(remove_by_value)) => {
+                let result = list_remove_by_value(&self, key, remove_by_value).await;
+                match result {
+                    Ok(removed_count) => Result::Ok(Response::new(FrAtomicResponse {
+                        value: Some(AtomicFrValue {
+                            value: Some(atomic_fr_value::Value::IntValue(removed_count)),
+                        }),
                     })),
                     Err(e) => Result::Err(Status::aborted(e)),
                 }

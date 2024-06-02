@@ -59,6 +59,7 @@ message ListCommand {
   oneof command {
     AtomicFrValue append = 2;
     int32 remove_at = 3;
+    AtomicFrValue remove_all = 4;
   }
 }
 

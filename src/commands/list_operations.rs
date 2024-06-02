@@ -23,7 +23,7 @@ pub async fn list_append(
     }
 }
 
-pub async fn list_remove(
+pub async fn list_remove_by_index(
     main_map: &CacheFRMap,
     key: FrKey,
     index: i32,
@@ -36,6 +36,26 @@ pub async fn list_remove(
                 .map_err(|e| format!("Error while parsing value to list: {}", e))?;
             let removed_val = stored_list.remove(index as usize);
             Ok(removed_val)
+        }
+        None => Err("Key does not exist".to_string()),
+    }
+}
+
+pub async fn list_remove_by_value(
+    main_map: &CacheFRMap,
+    key: FrKey,
+    value: AtomicFrValue,
+) -> Result<i32, String> {
+    let maybe_old_value = get::get_from_map_as_mut(&main_map, key.clone()).await;
+    match maybe_old_value {
+        Some(mut old_value) => {
+            let stored_list = old_value
+                .as_mut_list()
+                .map_err(|e| format!("Error while parsing value to list: {}", e))?;
+            let len_before_removal = stored_list.len();
+            stored_list.retain(|x| x != &StoredAtomicValue::from_atomic_fr_value(value.clone()));
+            let len_after_removal = stored_list.len();
+            Ok(len_before_removal as i32 - len_after_removal as i32)
         }
         None => Err("Key does not exist".to_string()),
     }
