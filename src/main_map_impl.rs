@@ -32,12 +32,15 @@ impl Commands for CacheFRMapImpl {
         }
     }
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<FrResponse>, Status> {
-        // extract key from request
         let (key, value, only_if_not_exists, return_value) = {
             let request = request.into_inner();
             (
-                request.key.expect("key is required"),
-                request.value.expect("Value is required"),
+                request
+                    .key
+                    .ok_or(Status::invalid_argument("key is required"))?,
+                request
+                    .value
+                    .ok_or(Status::invalid_argument("value is required"))?,
                 request.only_if_not_exists,
                 request.return_value,
             )
@@ -46,7 +49,7 @@ impl Commands for CacheFRMapImpl {
         let result = set_value_in_map(&self, key, value.clone(), only_if_not_exists).await;
         match result {
             Ok(value) => match return_value {
-                true => Result::Ok(Response::new(FrResponse { value: None })),
+                true => Result::Ok(Response::new(FrResponse { value: Some(value) })),
                 false => Result::Ok(Response::new(FrResponse { value: None })),
             },
             Err(e) => Result::Err(Status::already_exists(e)),
@@ -101,13 +104,21 @@ impl Commands for CacheFRMapImpl {
         match command {
             Some(commands_proto::set_commnad::Command::Add(add_value)) => {
                 let result = set_add(&self, key, add_value).await;
-                return Result::Ok(Response::new(FrAtomicResponse {
-                    value: result.map(|v| v.to_atomic_fr_value()),
-                }));
+                match result {
+                    Ok(atomic_value) => Result::Ok(Response::new(FrAtomicResponse {
+                        value: Some(atomic_value.to_atomic_fr_value()),
+                    })),
+                    Err(e) => Result::Err(Status::aborted(e)),
+                }
             }
             Some(commands_proto::set_commnad::Command::Remove(remove_value)) => {
                 let result = set_remove(&self, key, remove_value).await;
-                return Result::Ok(Response::new(FrAtomicResponse { value: result }));
+                match result {
+                    Ok(atomic_value) => Result::Ok(Response::new(FrAtomicResponse {
+                        value: Some(atomic_value.to_atomic_fr_value()),
+                    })),
+                    Err(e) => Result::Err(Status::aborted(e)),
+                }
             }
             _ => Result::Err(Status::unimplemented("Not implemented")),
         }

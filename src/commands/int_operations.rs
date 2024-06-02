@@ -3,14 +3,14 @@ use crate::{
     value_structs::{CacheFRMap, StoredAtomicValue, StoredFrValue},
 };
 
-use super::get::get_from_map;
+use super::get::{get_from_map, get_from_map_as_mut};
 
 pub async fn int_increment(
     main_map: &CacheFRMap,
     key: FrKey,
     amount: i32,
 ) -> Option<StoredAtomicValue> {
-    let maybe_old_value = get_from_map(main_map, key.clone()).await;
+    let maybe_old_value = get_from_map_as_mut(main_map, key.clone()).await;
 
     match maybe_old_value {
         Some(mut old_value) => {
