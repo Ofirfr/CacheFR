@@ -4,8 +4,9 @@ package commands_proto;
 service Commands {
   rpc Get(FrKey) returns (FrResponse);
   rpc Set(SetRequest) returns (FrResponse);
-  rpc IntOperation(IntCommand) returns (FrResponse);
-  rpc ListOperation(ListCommand) returns (FrResponse);
+  rpc IntOperation(IntCommand) returns (FrAtomicResponse);
+  rpc ListOperation(ListCommand) returns (FrAtomicResponse);
+  rpc SetOperation(SetCommnad) returns (FrAtomicResponse);
 }
 
 message FrKey {
@@ -17,18 +18,23 @@ message FrKey {
 
 message FrValue {
   oneof value {
-    string err_value = 1;
-    string string_value = 2;
-    int32 int_value = 3;
-    SetValue set_value = 4;
-    ListValue list_value = 5;
+    AtomicFrValue atomic_value = 1;
+    SetValue set_value = 2;
+    ListValue list_value = 3;
   }
-  uint64 expiry_timestamp_micros = 6;
+  uint64 expiry_timestamp_micros = 4;
 }
 
-message SetValue { repeated FrValue values = 1; }
+message AtomicFrValue {
+  oneof value {
+    string string_value = 1;
+    int32 int_value = 2;
+  }
+}
 
-message ListValue { repeated FrValue values = 1; }
+message SetValue { repeated AtomicFrValue values = 1; }
+
+message ListValue { repeated AtomicFrValue values = 1; }
 
 message SetRequest {
   FrKey key = 1;
@@ -37,10 +43,8 @@ message SetRequest {
   bool return_value = 4;
 }
 
-message FrResponse {
-  bool success = 1;
-  optional FrValue value = 2;
-}
+message FrResponse { optional FrValue value = 1; }
+message FrAtomicResponse { optional AtomicFrValue value = 1; }
 
 message IntCommand {
   FrKey key = 1;
@@ -53,7 +57,15 @@ message IntCommand {
 message ListCommand {
   FrKey key = 1;
   oneof command {
-    FrValue append = 2;
+    AtomicFrValue append = 2;
     int32 remove_at = 3;
+  }
+}
+
+message SetCommnad {
+  FrKey key = 1;
+  oneof command {
+    AtomicFrValue add = 2;
+    AtomicFrValue remove = 3;
   }
 }

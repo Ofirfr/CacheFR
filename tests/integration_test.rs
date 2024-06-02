@@ -3,12 +3,15 @@ mod tests {
     extern crate cache_fr;
     use cache_fr::commands_proto;
     use cache_fr::commands_proto::commands_server::Commands;
+    use cache_fr::commands_proto::AtomicFrValue;
     use cache_fr::commands_proto::FrKey;
     use cache_fr::commands_proto::FrResponse;
     use cache_fr::commands_proto::FrValue;
+    use cache_fr::commands_proto::SetCommnad;
     use cache_fr::commands_proto::SetRequest;
     use cache_fr::consts::NO_EXPIRY;
     use cache_fr::main_map_impl::CacheFRMapImpl;
+    use cache_fr::value_structs::StoredAtomicValue;
     use cache_fr::value_structs::StoredFrValueWithExpiry;
     use dashmap::DashMap;
     use std::{
@@ -35,8 +38,10 @@ mod tests {
         };
 
         let value = FrValue {
-            value: Some(commands_proto::fr_value::Value::StringValue(
-                "has the best value".to_string(),
+            value: Some(commands_proto::fr_value::Value::AtomicValue(
+                AtomicFrValue {
+                    value: Some(commands_proto::atomic_fr_value::Value::IntValue(100)),
+                },
             )),
             expiry_timestamp_micros: now_plus_a_second,
         };
@@ -60,7 +65,6 @@ mod tests {
                 .into_inner(),
             FrResponse {
                 value: Some(value.clone()),
-                success: true
             }
         );
 
@@ -90,7 +94,13 @@ mod tests {
 
         let initial_int_value = 100;
         let value = FrValue {
-            value: Some(commands_proto::fr_value::Value::IntValue(initial_int_value)),
+            value: Some(commands_proto::fr_value::Value::AtomicValue({
+                AtomicFrValue {
+                    value: Some(commands_proto::atomic_fr_value::Value::IntValue(
+                        initial_int_value,
+                    )),
+                }
+            })),
             expiry_timestamp_micros: NO_EXPIRY,
         };
 
@@ -154,7 +164,13 @@ mod tests {
                 .into_inner()
                 .value,
             Some(FrValue {
-                value: Some(commands_proto::fr_value::Value::IntValue(expected_sum)),
+                value: Some(commands_proto::fr_value::Value::AtomicValue({
+                    AtomicFrValue {
+                        value: Some(commands_proto::atomic_fr_value::Value::IntValue(
+                            expected_sum,
+                        )),
+                    }
+                })),
                 expiry_timestamp_micros: NO_EXPIRY
             })
         );
@@ -169,7 +185,7 @@ mod tests {
             )),
         };
 
-        let initial_list_value: Vec<FrValue> = vec![];
+        let initial_list_value: Vec<AtomicFrValue> = vec![];
 
         let value = FrValue {
             value: Some(commands_proto::fr_value::Value::ListValue(
@@ -212,10 +228,11 @@ mod tests {
                     let key_clone = key_clone.clone();
                     let list_append_command = commands_proto::ListCommand {
                         key: Some(key_clone),
-                        command: Some(commands_proto::list_command::Command::Append(FrValue {
-                            value: Some(commands_proto::fr_value::Value::IntValue(j)),
-                            expiry_timestamp_micros: NO_EXPIRY,
-                        })),
+                        command: Some(commands_proto::list_command::Command::Append(
+                            AtomicFrValue {
+                                value: Some(commands_proto::atomic_fr_value::Value::IntValue(j)),
+                            },
+                        )),
                     };
                     let _ = arc_cache_fr_service
                         .list_operation(Request::new(list_append_command))
@@ -243,5 +260,98 @@ mod tests {
         let expected_len = num_of_threads * num_of_threads + initial_list_value.len() as i32;
         // Check that the list was appended correctly
         assert_eq!(list_result.as_list().unwrap().len() as i32, expected_len);
+    }
+
+    #[tokio::test]
+    async fn test_integration_set_add_and_remove() {
+        let cache_fr_service: CacheFRMapImpl = Arc::new(DashMap::new());
+
+        let key: FrKey = FrKey {
+            key: Some(commands_proto::fr_key::Key::StringKey(
+                "my best key".to_string(),
+            )),
+        };
+
+        let initial_set_value = FrValue {
+            value: Some(commands_proto::fr_value::Value::SetValue(
+                commands_proto::SetValue { values: vec![] },
+            )),
+            expiry_timestamp_micros: NO_EXPIRY,
+        };
+
+        // Create the set
+        let set_request = SetRequest {
+            key: Some(key.clone()),
+            value: Some(initial_set_value.clone()),
+            only_if_not_exists: false,
+            return_value: false,
+        };
+        // Create the set and check that it is created
+        let _ = cache_fr_service.set(Request::new(set_request)).await;
+        assert_eq!(
+            cache_fr_service
+                .get(Request::new(key.clone()))
+                .await
+                .unwrap()
+                .into_inner()
+                .value,
+            Some(initial_set_value.clone())
+        );
+
+        let first_value = AtomicFrValue {
+            value: Some(commands_proto::atomic_fr_value::Value::IntValue(0)),
+        };
+        let second_value = AtomicFrValue {
+            value: Some(commands_proto::atomic_fr_value::Value::IntValue(1)),
+        };
+        let third_value = AtomicFrValue {
+            value: Some(commands_proto::atomic_fr_value::Value::StringValue(
+                "HELLO".to_string(),
+            )),
+        };
+
+        // Add the values to the set
+        let _ = cache_fr_service
+            .set_operation(Request::new(SetCommnad {
+                key: Some(key.clone()),
+                command: Some(commands_proto::set_commnad::Command::Add(
+                    first_value.clone(),
+                )),
+            }))
+            .await;
+
+        let _ = cache_fr_service
+            .set_operation(Request::new(SetCommnad {
+                key: Some(key.clone()),
+                command: Some(commands_proto::set_commnad::Command::Add(
+                    second_value.clone(),
+                )),
+            }))
+            .await;
+
+        let _ = cache_fr_service
+            .set_operation(Request::new(SetCommnad {
+                key: Some(key.clone()),
+                command: Some(commands_proto::set_commnad::Command::Add(
+                    third_value.clone(),
+                )),
+            }))
+            .await;
+
+        // Test that the values are set correctly
+        let set_result = StoredFrValueWithExpiry::from_fr_value(
+            cache_fr_service
+                .get(Request::new(key.clone()))
+                .await
+                .unwrap()
+                .into_inner()
+                .value
+                .unwrap(),
+        );
+        let result_as_set = set_result.as_set().unwrap();
+        assert_eq!(result_as_set.len(), 3);
+        assert!(result_as_set.contains(&StoredAtomicValue::from_atomic_fr_value(first_value)));
+        assert!(result_as_set.contains(&StoredAtomicValue::from_atomic_fr_value(second_value)));
+        assert!(result_as_set.contains(&StoredAtomicValue::from_atomic_fr_value(third_value)));
     }
 }

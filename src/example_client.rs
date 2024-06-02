@@ -1,6 +1,7 @@
 use std::time::{self, UNIX_EPOCH};
 
 use commands_proto::commands_client::CommandsClient;
+use commands_proto::AtomicFrValue;
 use commands_proto::FrKey;
 use commands_proto::SetRequest;
 
@@ -25,8 +26,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             key: Some(commands_proto::fr_key::Key::StringKey("my_key".to_string())),
         }),
         value: Some(FrValue {
-            value: Some(commands_proto::fr_value::Value::StringValue(
-                "my_value".to_string(),
+            value: Some(commands_proto::fr_value::Value::AtomicValue(
+                AtomicFrValue {
+                    value: Some(commands_proto::atomic_fr_value::Value::IntValue(1)),
+                },
             )),
             expiry_timestamp_micros: now_plus_a_second,
         }),

@@ -1,6 +1,5 @@
 use crate::{
     commands_proto::{FrKey, FrValue},
-    consts::ERROR_EXPIRY,
     value_structs::{CacheFRMap, StoredFrValueWithExpiry},
 };
 pub async fn set_value_in_map<'a>(
@@ -8,18 +7,10 @@ pub async fn set_value_in_map<'a>(
     key: FrKey,
     value: FrValue,
     only_if_not_exists: bool,
-) -> (bool, FrValue) {
+) -> Result<FrValue, String> {
     // Check only-if-exists-constraint
     if only_if_not_exists && main_map.contains_key(&key) {
-        return (
-            false,
-            FrValue {
-                value: Some(crate::commands_proto::fr_value::Value::ErrValue(
-                    String::from("Key already exists"),
-                )),
-                expiry_timestamp_micros: ERROR_EXPIRY,
-            },
-        );
+        return Err("Key already exists".to_string());
     }
 
     // Write block for minimal blocking time
@@ -29,5 +20,5 @@ pub async fn set_value_in_map<'a>(
             StoredFrValueWithExpiry::from_fr_value(value.clone()),
         );
     }
-    return (true, value);
+    return Ok(value);
 }

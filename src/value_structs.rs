@@ -1,4 +1,4 @@
-use crate::commands_proto::{self, FrKey, FrValue};
+use crate::commands_proto::{self, atomic_fr_value, AtomicFrValue, FrKey, FrValue};
 use dashmap::{DashMap, DashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -7,7 +7,7 @@ pub type CacheFRMap = Arc<DashMap<FrKey, StoredFrValueWithExpiry>>;
 
 #[derive(Clone, Debug)]
 pub struct WrappedDashSet {
-    pub wrapped_set: DashSet<StoredFrValueWithExpiry>,
+    pub wrapped_set: DashSet<StoredAtomicValue>,
 }
 
 impl Eq for WrappedDashSet {}
@@ -33,11 +33,42 @@ impl Hash for WrappedDashSet {
 }
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug)]
+pub enum StoredAtomicValue {
+    IntValue(i32),
+    StringValue(String),
+}
+
+impl StoredAtomicValue {
+    pub fn from_atomic_fr_value(atomic_fr_value: AtomicFrValue) -> StoredAtomicValue {
+        match atomic_fr_value.value {
+            Some(commands_proto::atomic_fr_value::Value::IntValue(v)) => {
+                StoredAtomicValue::IntValue(v)
+            }
+            Some(commands_proto::atomic_fr_value::Value::StringValue(v)) => {
+                StoredAtomicValue::StringValue(v)
+            }
+            _ => panic!("Not an atomic value!"),
+        }
+    }
+    pub fn to_atomic_fr_value(&self) -> AtomicFrValue {
+        match self {
+            StoredAtomicValue::IntValue(v) => AtomicFrValue {
+                value: Some(atomic_fr_value::Value::IntValue(*v)),
+            },
+            StoredAtomicValue::StringValue(v) => AtomicFrValue {
+                value: Some(atomic_fr_value::Value::StringValue(v.clone())),
+            },
+            _ => panic!("Not an atomic value!"),
+        }
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Clone, Debug)]
 pub enum StoredFrValue {
     IntValue(i32),
     StringValue(String),
     SetValue(WrappedDashSet),
-    ListValue(Vec<StoredFrValueWithExpiry>),
+    ListValue(Vec<StoredAtomicValue>),
 }
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug)]
@@ -49,18 +80,25 @@ pub struct StoredFrValueWithExpiry {
 impl StoredFrValueWithExpiry {
     pub fn from_fr_value(fr_value: FrValue) -> StoredFrValueWithExpiry {
         match fr_value.value {
-            Some(commands_proto::fr_value::Value::IntValue(v)) => StoredFrValueWithExpiry {
-                value: StoredFrValue::IntValue(v),
-                expiry_timestamp_micros: fr_value.expiry_timestamp_micros,
-            },
-            Some(commands_proto::fr_value::Value::StringValue(v)) => StoredFrValueWithExpiry {
-                value: StoredFrValue::StringValue(v),
-                expiry_timestamp_micros: fr_value.expiry_timestamp_micros,
+            Some(commands_proto::fr_value::Value::AtomicValue(v)) => match v.value {
+                Some(commands_proto::atomic_fr_value::Value::IntValue(v)) => {
+                    StoredFrValueWithExpiry {
+                        value: StoredFrValue::IntValue(v),
+                        expiry_timestamp_micros: fr_value.expiry_timestamp_micros,
+                    }
+                }
+                Some(commands_proto::atomic_fr_value::Value::StringValue(v)) => {
+                    StoredFrValueWithExpiry {
+                        value: StoredFrValue::StringValue(v),
+                        expiry_timestamp_micros: fr_value.expiry_timestamp_micros,
+                    }
+                }
+                _ => panic!("Invalid value type"),
             },
             Some(commands_proto::fr_value::Value::SetValue(v)) => {
-                let new_set = DashSet::<StoredFrValueWithExpiry>::new();
+                let new_set = DashSet::<StoredAtomicValue>::new();
                 for value in v.values {
-                    new_set.insert(StoredFrValueWithExpiry::from_fr_value(value));
+                    new_set.insert(StoredAtomicValue::from_atomic_fr_value(value));
                 }
                 StoredFrValueWithExpiry {
                     value: StoredFrValue::SetValue(WrappedDashSet {
@@ -70,9 +108,9 @@ impl StoredFrValueWithExpiry {
                 }
             }
             Some(commands_proto::fr_value::Value::ListValue(v)) => {
-                let mut new_list = Vec::<StoredFrValueWithExpiry>::new();
+                let mut new_list = Vec::<StoredAtomicValue>::new();
                 for value in v.values {
-                    new_list.push(StoredFrValueWithExpiry::from_fr_value(value));
+                    new_list.push(StoredAtomicValue::from_atomic_fr_value(value));
                 }
                 StoredFrValueWithExpiry {
                     value: StoredFrValue::ListValue(new_list),
@@ -86,11 +124,21 @@ impl StoredFrValueWithExpiry {
     pub fn to_fr_value(&self) -> FrValue {
         match &self.value {
             StoredFrValue::IntValue(v) => FrValue {
-                value: Some(commands_proto::fr_value::Value::IntValue(*v)),
+                value: Some(commands_proto::fr_value::Value::AtomicValue(
+                    AtomicFrValue {
+                        value: Some(commands_proto::atomic_fr_value::Value::IntValue(*v)),
+                    },
+                )),
                 expiry_timestamp_micros: self.expiry_timestamp_micros,
             },
             StoredFrValue::StringValue(v) => FrValue {
-                value: Some(commands_proto::fr_value::Value::StringValue(v.clone())),
+                value: Some(commands_proto::fr_value::Value::AtomicValue(
+                    AtomicFrValue {
+                        value: Some(commands_proto::atomic_fr_value::Value::StringValue(
+                            v.clone(),
+                        )),
+                    },
+                )),
                 expiry_timestamp_micros: self.expiry_timestamp_micros,
             },
             StoredFrValue::SetValue(v) => FrValue {
@@ -99,7 +147,7 @@ impl StoredFrValueWithExpiry {
                         values: v
                             .wrapped_set
                             .iter()
-                            .map(|value| StoredFrValueWithExpiry::to_fr_value(value.key()))
+                            .map(|value| StoredAtomicValue::to_atomic_fr_value(value.key()))
                             .collect(),
                     },
                 )),
@@ -110,7 +158,7 @@ impl StoredFrValueWithExpiry {
                     commands_proto::ListValue {
                         values: v
                             .iter()
-                            .map(|value| StoredFrValueWithExpiry::to_fr_value(value))
+                            .map(|value| StoredAtomicValue::to_atomic_fr_value(value))
                             .collect(),
                     },
                 )),
@@ -120,6 +168,18 @@ impl StoredFrValueWithExpiry {
     }
 
     pub fn as_int(&self) -> Result<&i32, &str> {
+        if let StoredFrValueWithExpiry {
+            value: StoredFrValue::IntValue(v),
+            ..  // Ignore expiry_timestamp_micros
+        } = self
+        {
+            Ok(v)
+        } else {
+            Err("Not IntValue!")
+        }
+    }
+
+    pub fn as_mut_int(&mut self) -> Result<&mut i32, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::IntValue(v),
             ..  // Ignore expiry_timestamp_micros
@@ -143,7 +203,7 @@ impl StoredFrValueWithExpiry {
         }
     }
 
-    pub fn as_set(&self) -> Result<&DashSet<StoredFrValueWithExpiry>, &str> {
+    pub fn as_set(&self) -> Result<&DashSet<StoredAtomicValue>, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::SetValue(v),
             ..  // Ignore expiry_timestamp_micros
@@ -155,7 +215,19 @@ impl StoredFrValueWithExpiry {
         }
     }
 
-    pub fn as_list(&self) -> Result<&Vec<StoredFrValueWithExpiry>, &str> {
+    pub fn as_mut_set(&mut self) -> Result<&mut DashSet<StoredAtomicValue>, &str> {
+        if let StoredFrValueWithExpiry {
+            value: StoredFrValue::SetValue(v),
+            ..  // Ignore expiry_timestamp_micros
+        } = self
+        {
+            Ok(&mut v.wrapped_set)
+        } else {
+            Err("Not SetValue!")
+        }
+    }
+
+    pub fn as_list(&self) -> Result<&Vec<StoredAtomicValue>, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::ListValue(v),
             ..  // Ignore expiry_timestamp_micros
@@ -167,7 +239,7 @@ impl StoredFrValueWithExpiry {
         }
     }
 
-    pub fn as_mut_list(&mut self) -> Result<&mut Vec<StoredFrValueWithExpiry>, &str> {
+    pub fn as_mut_list(&mut self) -> Result<&mut Vec<StoredAtomicValue>, &str> {
         if let StoredFrValueWithExpiry {
             value: StoredFrValue::ListValue(v),
             ..  // Ignore expiry_timestamp_micros
