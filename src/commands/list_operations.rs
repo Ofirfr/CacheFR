@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use crate::{
     commands::get,
     commands_proto::{self, AtomicFrValue, FrKey, FrValue},
@@ -8,28 +10,35 @@ pub async fn list_append(
     main_map: &CacheFRMap,
     key: FrKey,
     value: AtomicFrValue,
-) -> Option<StoredAtomicValue> {
+) -> Result<StoredAtomicValue, String> {
     let maybe_old_value = get::get_from_map_as_mut(&main_map, key.clone()).await;
-    maybe_old_value.map(|mut old_value| {
-        let old_value_as_list = old_value.as_mut_list().expect("Stored value is not a list");
-        let value_to_insert = StoredAtomicValue::from_atomic_fr_value(value);
-        old_value_as_list.push(value_to_insert.clone());
-        value_to_insert
-    })
+    match maybe_old_value {
+        Some(mut old_value) => {
+            let stored_list = old_value
+                .as_mut_list()
+                .map_err(|e| format!("Error while parsing value to list: {}", e))?;
+            let value_to_push = StoredAtomicValue::from_atomic_fr_value(value);
+            stored_list.push(value_to_push.clone());
+            Ok(value_to_push)
+        }
+        None => Err("Key does not exist".to_string()),
+    }
 }
 
 pub async fn list_remove(
     main_map: &CacheFRMap,
     key: FrKey,
     index: i32,
-) -> Option<StoredAtomicValue> {
+) -> Result<StoredAtomicValue, String> {
     let maybe_old_value = get::get_from_map_as_mut(&main_map, key.clone()).await;
-    let old_value = &mut maybe_old_value.expect("Key does not exist");
-    let old_value_as_list = old_value.as_mut_list();
-    if let Ok(old_value_as_list) = old_value_as_list {
-        let removed_val = old_value_as_list.remove(index as usize);
-        Some(removed_val)
-    } else {
-        None
+    match maybe_old_value {
+        Some(mut old_value) => {
+            let stored_list = old_value
+                .as_mut_list()
+                .map_err(|e| format!("Error while parsing value to list: {}", e))?;
+            let removed_val = stored_list.remove(index as usize);
+            Ok(removed_val)
+        }
+        None => Err("Key does not exist".to_string()),
     }
 }

@@ -9,17 +9,19 @@ pub async fn int_increment(
     main_map: &CacheFRMap,
     key: FrKey,
     amount: i32,
-) -> Option<StoredAtomicValue> {
+) -> Result<StoredAtomicValue, String> {
     let maybe_old_value = get_from_map_as_mut(main_map, key.clone()).await;
 
     match maybe_old_value {
         Some(mut old_value) => {
-            let stored_int = old_value.as_mut_int().expect("Not an int");
+            let stored_int = old_value
+                .as_mut_int()
+                .map_err(|e| format!("Error while parsing value to int: {}", e))?;
             *stored_int += amount;
 
-            Some(StoredAtomicValue::IntValue((*stored_int)))
+            Ok(StoredAtomicValue::IntValue((*stored_int)))
         }
 
-        None => None,
+        None => Err("Key does not exist".to_string()),
     }
 }

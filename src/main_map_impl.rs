@@ -62,14 +62,22 @@ impl Commands for CacheFRMapImpl {
     ) -> Result<Response<FrAtomicResponse>, Status> {
         let (key, command) = {
             let request = request.into_inner();
-            (request.key.expect("key is required"), request.command)
+            (
+                request
+                    .key
+                    .ok_or(Status::invalid_argument("key is required"))?,
+                request.command,
+            )
         };
         match command {
             Some(commands_proto::int_command::Command::IncrementBy(increment_by)) => {
                 let result = int_increment(&self, key, increment_by).await;
-                return Result::Ok(Response::new(FrAtomicResponse {
-                    value: result.map(|v| v.to_atomic_fr_value()),
-                }));
+                match result {
+                    Ok(atomic_value) => Result::Ok(Response::new(FrAtomicResponse {
+                        value: Some(atomic_value.to_atomic_fr_value()),
+                    })),
+                    Err(e) => Result::Err(Status::aborted(e)),
+                }
             }
             _ => Result::Err(Status::unimplemented("Not implemented")),
         }
@@ -80,14 +88,22 @@ impl Commands for CacheFRMapImpl {
     ) -> Result<Response<FrAtomicResponse>, Status> {
         let (key, command) = {
             let request = request.into_inner();
-            (request.key.expect("key is required"), request.command)
+            (
+                request
+                    .key
+                    .ok_or(Status::invalid_argument("key is required"))?,
+                request.command,
+            )
         };
         match command {
             Some(commands_proto::list_command::Command::Append(append_value)) => {
                 let result = list_append(&self, key, append_value).await;
-                return Result::Ok(Response::new(FrAtomicResponse {
-                    value: result.map(|v| v.to_atomic_fr_value()),
-                }));
+                match result {
+                    Ok(atomic_value) => Result::Ok(Response::new(FrAtomicResponse {
+                        value: Some(atomic_value.to_atomic_fr_value()),
+                    })),
+                    Err(e) => Result::Err(Status::aborted(e)),
+                }
             }
             _ => Result::Err(Status::unimplemented("Not implemented")),
         }
@@ -99,7 +115,12 @@ impl Commands for CacheFRMapImpl {
     ) -> Result<Response<FrAtomicResponse>, Status> {
         let (key, command) = {
             let request = request.into_inner();
-            (request.key.expect("key is required"), request.command)
+            (
+                request
+                    .key
+                    .ok_or(Status::invalid_argument("key is required"))?,
+                request.command,
+            )
         };
         match command {
             Some(commands_proto::set_commnad::Command::Add(add_value)) => {
