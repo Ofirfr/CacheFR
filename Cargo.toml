@@ -3,10 +3,6 @@ name = "cache_fr"
 version = "0.1.0"
 edition = "2021"
 
-[[test]]
-name="testing_test_test"
-path="tests/integration_test.rs"
-
 [[bin]]
 name="cache_fr_server"
 path="src/server.rs"

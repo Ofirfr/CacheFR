@@ -1,9 +1,9 @@
 use crate::{
-    commands_proto::{self, AtomicFrValue, FrKey, FrValue},
-    value_structs::{CacheFRMap, StoredAtomicValue, StoredFrValue},
+    commands_proto::FrKey,
+    value_structs::{CacheFRMap, StoredAtomicValue},
 };
 
-use super::get::{get_from_map, get_from_map_as_mut};
+use super::get::get_from_map_as_mut;
 
 pub async fn int_increment(
     main_map: &CacheFRMap,

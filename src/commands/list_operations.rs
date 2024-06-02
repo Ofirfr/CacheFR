@@ -1,9 +1,7 @@
-use std::fmt::format;
-
 use crate::{
     commands::get,
-    commands_proto::{self, AtomicFrValue, FrKey, FrValue},
-    value_structs::{CacheFRMap, StoredAtomicValue, StoredFrValueWithExpiry},
+    commands_proto::{AtomicFrValue, FrKey},
+    value_structs::{CacheFRMap, StoredAtomicValue},
 };
 
 pub async fn list_append(
