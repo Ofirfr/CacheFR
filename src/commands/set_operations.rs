@@ -45,3 +45,20 @@ pub async fn set_remove(
         None => Err("Key does not exist".to_string()),
     }
 }
+
+pub async fn set_contains(
+    main_map: &CacheFRMap,
+    key: FrKey,
+    value: AtomicFrValue,
+) -> Result<bool, String> {
+    let maybe_old_value = get::get_from_map(&main_map, key.clone()).await;
+    match maybe_old_value {
+        Some(old_value) => {
+            let old_value_as_set = old_value
+                .as_set()
+                .map_err(|e| format!("Error while parsing value to mut set: {}", e))?;
+            Ok(old_value_as_set.contains(&StoredAtomicValue::from_atomic_fr_value(value)))
+        }
+        None => Err("Key does not exist".to_string()),
+    }
+}

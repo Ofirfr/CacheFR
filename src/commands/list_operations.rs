@@ -60,3 +60,26 @@ pub async fn list_remove_by_value(
         None => Err("Key does not exist".to_string()),
     }
 }
+
+pub async fn list_first_appearance(
+    main_map: &CacheFRMap,
+    key: FrKey,
+    value: AtomicFrValue,
+) -> Result<StoredAtomicValue, String> {
+    let maybe_old_value = get::get_from_map(&main_map, key.clone()).await;
+    match maybe_old_value {
+        Some(old_value) => {
+            let stored_list = old_value
+                .as_list()
+                .map_err(|e| format!("Error while parsing value to list: {}", e))?;
+            match stored_list
+                .iter()
+                .position(|x| x == &StoredAtomicValue::from_atomic_fr_value(value.clone()))
+            {
+                Some(v) => Ok(StoredAtomicValue::IntValue(v as i32)),
+                None => Err("Value does not exist".to_string()),
+            }
+        }
+        None => Err("Key does not exist".to_string()),
+    }
+}

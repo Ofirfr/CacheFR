@@ -4,9 +4,11 @@ use crate::{
     commands::{
         get::get_from_map,
         int_operations::int_increment,
-        list_operations::{list_append, list_remove_by_index, list_remove_by_value},
+        list_operations::{
+            list_append, list_first_appearance, list_remove_by_index, list_remove_by_value,
+        },
         set::set_value_in_map,
-        set_operations::{set_add, set_remove},
+        set_operations::{set_add, set_contains, set_remove},
     },
     commands_proto::{
         self, atomic_fr_value, commands_server::Commands, AtomicFrValue, FrAtomicResponse, FrKey,
@@ -123,6 +125,15 @@ impl Commands for CacheFRMapImpl {
                     Err(e) => Result::Err(Status::aborted(e)),
                 }
             }
+            Some(commands_proto::list_command::Command::FirstAppearance(searched_value)) => {
+                let result = list_first_appearance(&self, key, searched_value).await;
+                match result {
+                    Ok(first_index) => Result::Ok(Response::new(FrAtomicResponse {
+                        value: Some(first_index.to_atomic_fr_value()),
+                    })),
+                    Err(e) => Result::Err(Status::aborted(e)),
+                }
+            }
             _ => Result::Err(Status::unimplemented("Not implemented")),
         }
     }
@@ -155,6 +166,17 @@ impl Commands for CacheFRMapImpl {
                 match result {
                     Ok(atomic_value) => Result::Ok(Response::new(FrAtomicResponse {
                         value: Some(atomic_value.to_atomic_fr_value()),
+                    })),
+                    Err(e) => Result::Err(Status::aborted(e)),
+                }
+            }
+            Some(commands_proto::set_commnad::Command::Contains(searched_value)) => {
+                let result = set_contains(&self, key, searched_value).await;
+                match result {
+                    Ok(contains) => Result::Ok(Response::new(FrAtomicResponse {
+                        value: Some(AtomicFrValue {
+                            value: Some(atomic_fr_value::Value::BoolValue(contains)),
+                        }),
                     })),
                     Err(e) => Result::Err(Status::aborted(e)),
                 }

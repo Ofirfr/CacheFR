@@ -29,6 +29,7 @@ message AtomicFrValue {
   oneof value {
     string string_value = 1;
     int32 int_value = 2;
+    bool bool_value = 3;
   }
 }
 
@@ -60,6 +61,7 @@ message ListCommand {
     AtomicFrValue append = 2;
     int32 remove_at = 3;
     AtomicFrValue remove_all = 4;
+    AtomicFrValue first_appearance = 5;
   }
 }
 
@@ -68,5 +70,6 @@ message SetCommnad {
   oneof command {
     AtomicFrValue add = 2;
     AtomicFrValue remove = 3;
+    AtomicFrValue contains = 4;
   }
 }

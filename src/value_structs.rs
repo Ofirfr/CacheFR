@@ -36,6 +36,7 @@ impl Hash for WrappedDashSet {
 pub enum StoredAtomicValue {
     IntValue(i32),
     StringValue(String),
+    BoolValue(bool),
 }
 
 impl StoredAtomicValue {
@@ -46,6 +47,9 @@ impl StoredAtomicValue {
             }
             Some(commands_proto::atomic_fr_value::Value::StringValue(v)) => {
                 StoredAtomicValue::StringValue(v)
+            }
+            Some(commands_proto::atomic_fr_value::Value::BoolValue(v)) => {
+                StoredAtomicValue::BoolValue(v)
             }
             _ => panic!("Not an atomic value!"),
         }
@@ -58,6 +62,9 @@ impl StoredAtomicValue {
             StoredAtomicValue::StringValue(v) => AtomicFrValue {
                 value: Some(atomic_fr_value::Value::StringValue(v.clone())),
             },
+            StoredAtomicValue::BoolValue(v) => AtomicFrValue {
+                value: Some(atomic_fr_value::Value::BoolValue(*v)),
+            },
             _ => panic!("Not an atomic value!"),
         }
     }
@@ -65,8 +72,7 @@ impl StoredAtomicValue {
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug)]
 pub enum StoredFrValue {
-    IntValue(i32),
-    StringValue(String),
+    AtomicValue(StoredAtomicValue),
     SetValue(WrappedDashSet),
     ListValue(Vec<StoredAtomicValue>),
 }
@@ -83,13 +89,13 @@ impl StoredFrValueWithExpiry {
             Some(commands_proto::fr_value::Value::AtomicValue(v)) => match v.value {
                 Some(commands_proto::atomic_fr_value::Value::IntValue(v)) => {
                     StoredFrValueWithExpiry {
-                        value: StoredFrValue::IntValue(v),
+                        value: StoredFrValue::AtomicValue(StoredAtomicValue::IntValue(v)),
                         expiry_timestamp_micros: fr_value.expiry_timestamp_micros,
                     }
                 }
                 Some(commands_proto::atomic_fr_value::Value::StringValue(v)) => {
                     StoredFrValueWithExpiry {
-                        value: StoredFrValue::StringValue(v),
+                        value: StoredFrValue::AtomicValue(StoredAtomicValue::StringValue(v)),
                         expiry_timestamp_micros: fr_value.expiry_timestamp_micros,
                     }
                 }
@@ -123,24 +129,25 @@ impl StoredFrValueWithExpiry {
 
     pub fn to_fr_value(&self) -> FrValue {
         match &self.value {
-            StoredFrValue::IntValue(v) => FrValue {
-                value: Some(commands_proto::fr_value::Value::AtomicValue(
-                    AtomicFrValue {
+            StoredFrValue::AtomicValue(v) => {
+                let atomic_value = match v {
+                    StoredAtomicValue::IntValue(v) => AtomicFrValue {
                         value: Some(commands_proto::atomic_fr_value::Value::IntValue(*v)),
                     },
-                )),
-                expiry_timestamp_micros: self.expiry_timestamp_micros,
-            },
-            StoredFrValue::StringValue(v) => FrValue {
-                value: Some(commands_proto::fr_value::Value::AtomicValue(
-                    AtomicFrValue {
+                    StoredAtomicValue::StringValue(v) => AtomicFrValue {
                         value: Some(commands_proto::atomic_fr_value::Value::StringValue(
                             v.clone(),
                         )),
                     },
-                )),
-                expiry_timestamp_micros: self.expiry_timestamp_micros,
-            },
+                    StoredAtomicValue::BoolValue(v) => AtomicFrValue {
+                        value: Some(commands_proto::atomic_fr_value::Value::BoolValue(*v)),
+                    },
+                };
+                FrValue {
+                    value: Some(commands_proto::fr_value::Value::AtomicValue(atomic_value)),
+                    expiry_timestamp_micros: self.expiry_timestamp_micros,
+                }
+            }
             StoredFrValue::SetValue(v) => FrValue {
                 value: Some(commands_proto::fr_value::Value::SetValue(
                     commands_proto::SetValue {
@@ -169,7 +176,7 @@ impl StoredFrValueWithExpiry {
 
     pub fn as_int(&self) -> Result<&i32, &str> {
         if let StoredFrValueWithExpiry {
-            value: StoredFrValue::IntValue(v),
+            value: StoredFrValue::AtomicValue(StoredAtomicValue::IntValue(v)),
             ..  // Ignore expiry_timestamp_micros
         } = self
         {
@@ -181,7 +188,7 @@ impl StoredFrValueWithExpiry {
 
     pub fn as_mut_int(&mut self) -> Result<&mut i32, &str> {
         if let StoredFrValueWithExpiry {
-            value: StoredFrValue::IntValue(v),
+            value: StoredFrValue::AtomicValue(StoredAtomicValue::IntValue(v)),
             ..  // Ignore expiry_timestamp_micros
         } = self
         {
@@ -193,13 +200,25 @@ impl StoredFrValueWithExpiry {
 
     pub fn as_string(&self) -> Result<&String, &str> {
         if let StoredFrValueWithExpiry {
-            value: StoredFrValue::StringValue(v),
+            value: StoredFrValue::AtomicValue(StoredAtomicValue::StringValue(v)),
             ..  // Ignore expiry_timestamp_micros
         } = self
         {
             Ok(v)
         } else {
-            Err("Not StringValue!")
+            Err("Not IntValue!")
+        }
+    }
+
+    pub fn as_bool(&self) -> Result<bool, &str> {
+        if let StoredFrValueWithExpiry {
+            value: StoredFrValue::AtomicValue(StoredAtomicValue::BoolValue(v)),
+            ..  // Ignore expiry_timestamp_micros
+        } = self
+        {
+            Ok(*v)
+        } else {
+            Err("Not IntValue!")
         }
     }
 
