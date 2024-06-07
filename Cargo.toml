@@ -7,9 +7,6 @@ edition = "2021"
 name="cache_fr_server"
 path="src/server.rs"
 
-[[bin]]
-name="cache_fr_example_client"
-path="src/example_client.rs"
 
 [dependencies]
 tonic = "0.7"

@@ -10,7 +10,7 @@ use commands_proto::commands_server::CommandsServer;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting server...");
-    let addr = "[::1]:50051".parse()?;
+    let addr = "[::]:50051".parse()?;
     let cache_fr_service: CacheFRMapImpl = Arc::new(DashMap::new());
 
     Server::builder()
