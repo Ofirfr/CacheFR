@@ -3,7 +3,7 @@ use dashmap::{DashMap, DashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-pub type CacheFRMap = Arc<DashMap<FrKey, StoredFrValueWithExpiry>>;
+pub type CacheFRMap = DashMap<FrKey, StoredFrValueWithExpiry>;
 
 #[derive(Clone, Debug)]
 pub struct WrappedDashSet {

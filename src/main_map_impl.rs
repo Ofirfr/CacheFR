@@ -45,10 +45,9 @@ impl Commands for CacheFRMapImpl {
                 request.return_value,
             )
         };
-        //
         let result = set_value_in_map(&self, key, value.clone(), only_if_not_exists).await;
         match result {
-            Ok(value) => match return_value {
+            Ok(()) => match return_value {
                 true => Result::Ok(Response::new(FrResponse { value: Some(value) })),
                 false => Result::Ok(Response::new(FrResponse { value: None })),
             },

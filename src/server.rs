@@ -11,7 +11,7 @@ use commands_proto::commands_server::CommandsServer;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting server...");
     let addr = "[::]:50051".parse()?;
-    let cache_fr_service: CacheFRMapImpl = Arc::new(DashMap::new());
+    let cache_fr_service: CacheFRMapImpl = DashMap::with_capacity_and_shard_amount(100_000, 8);
 
     Server::builder()
         .add_service(CommandsServer::new(cache_fr_service))
