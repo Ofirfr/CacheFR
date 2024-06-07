@@ -9,11 +9,11 @@ path="src/server.rs"
 
 
 [dependencies]
-tonic = "0.7"
-prost = "0.10"
+tonic = "0.11"
+prost = "0.12.6"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "full"] }
 dashmap = "5.5.3"
 
 [build-dependencies]
-tonic-build = "0.7"
-prost-build = "0.10"
+tonic-build = "0.11.0"
+prost-build = "0.12.6"
