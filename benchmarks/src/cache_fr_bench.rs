@@ -3,9 +3,8 @@ use cache_fr_client::{
     commands_proto::{AtomicFrValue, FrKey, FrValue, SetRequest},
     CommandsClientPool,
 };
-use std::time::{self, UNIX_EPOCH};
-
 use rand::Rng;
+use std::sync::{Arc, Mutex};
 use stopwatch::Stopwatch;
 
 pub mod commands_proto {
@@ -16,55 +15,61 @@ pub mod commands_proto {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = CommandsClientPool::new("http://[::1]:50051").await;
 
-    let mut rng = rand::thread_rng();
     let stopwatch = Stopwatch::start_new();
 
     let num_operations = 10000;
 
-    let mut total_server_time_micro = 0;
+    let mut handles = vec![];
 
-    for _ in 0..num_operations {
-        let key: u32 = rng.gen();
-        let value: u32 = rng.gen();
+    let num_of_threads = 5;
 
-        let request = SetRequest {
-            key: Some(FrKey {
-                key: Some(cache_fr_client::commands_proto::fr_key::Key::StringKey(
-                    key.to_string(),
-                )),
-            }),
-            value: Some(FrValue {
-                value: Some(
-                    cache_fr_client::commands_proto::fr_value::Value::AtomicValue(AtomicFrValue {
+    for _ in 0..num_of_threads {
+        let pool_clone = pool.clone();
+
+        let handle = tokio::spawn(async move {
+            for _ in 0..(num_operations / 5) {
+                let key: u32 = 123;
+                let value: u32 = 123;
+
+                let request = SetRequest {
+                    key: Some(FrKey {
+                        key: Some(cache_fr_client::commands_proto::fr_key::Key::StringKey(
+                            key.to_string(),
+                        )),
+                    }),
+                    value: Some(FrValue {
                         value: Some(
-                            cache_fr_client::commands_proto::atomic_fr_value::Value::IntValue(
-                                value as i32,
+                            cache_fr_client::commands_proto::fr_value::Value::AtomicValue(
+                                AtomicFrValue {
+                                    value: Some(
+                                        cache_fr_client::commands_proto::atomic_fr_value::Value::IntValue(
+                                            value as i32,
+                                        ),
+                                    ),
+                                },
                             ),
                         ),
+                        expiry_timestamp_micros: 1,
                     }),
-                ),
-                expiry_timestamp_micros: 1,
-            }),
-            only_if_not_exists: false,
-            return_value: false,
-        };
+                    only_if_not_exists: false,
+                    return_value: false,
+                };
 
-        let stopwatch_server = Stopwatch::start_new();
+                let _ = pool_clone.set(request).await;
+            }
+        });
 
-        let _ = pool.set(request).await?;
+        handles.push(handle);
+    }
 
-        total_server_time_micro += stopwatch_server.elapsed().as_micros();
+    for handle in handles {
+        handle.await?;
     }
 
     let elapsed_time = stopwatch.elapsed_ms();
     println!(
-        "Elapsed time for {} gRPC SET operations: {} ms",
-        num_operations, elapsed_time
-    );
-
-    println!(
-        "Average server time per operation: {} micro seconds",
-        total_server_time_micro / num_operations
+        "Elapsed time for {} gRPC SET operations: {} ms with {} threads",
+        num_operations, elapsed_time, num_of_threads
     );
 
     Ok(())

@@ -47,12 +47,18 @@ pub struct CommandsClientPool {
 impl CommandsClientPool {
     pub async fn new(addr: &str) -> Self {
         let manager = TonicConnectionManager::new(addr.to_string());
-        let pool = Pool::builder().build(manager).await.unwrap();
+        let pool = Pool::builder()
+            .min_idle(8)
+            .max_size(32)
+            .build(manager)
+            .await
+            .unwrap();
+
         CommandsClientPool { pool }
     }
 
     pub async fn get(&self, key: FrKey) -> Result<FrResponse, Box<dyn Error>> {
-        let mut conn: PooledConnection<'_, TonicConnectionManager> = self.pool.get().await?;
+        let conn: PooledConnection<'_, TonicConnectionManager> = self.pool.get().await?;
         let mut client = CommandsClient::new(conn.clone());
 
         let request = tonic::Request::new(key);
