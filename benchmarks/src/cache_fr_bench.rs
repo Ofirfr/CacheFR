@@ -1,10 +1,12 @@
+use cache_fr_client::{
+    commands_proto::commands_client::CommandsClient,
+    commands_proto::{AtomicFrValue, FrKey, FrValue, SetRequest},
+    CommandsClientPool,
+};
 use std::time::{self, UNIX_EPOCH};
 
 use rand::Rng;
 use stopwatch::Stopwatch;
-
-use commands_proto::commands_client::CommandsClient;
-use commands_proto::{AtomicFrValue, FrKey, FrValue, SetRequest};
 
 pub mod commands_proto {
     tonic::include_proto!("commands_proto");
@@ -12,7 +14,7 @@ pub mod commands_proto {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = CommandsClient::connect("http://[::1]:50051").await?;
+    let pool = CommandsClientPool::new("http://[::1]:50051").await;
 
     let mut rng = rand::thread_rng();
     let stopwatch = Stopwatch::start_new();
@@ -25,27 +27,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let key: u32 = rng.gen();
         let value: u32 = rng.gen();
 
-        let request = tonic::Request::new(SetRequest {
+        let request = SetRequest {
             key: Some(FrKey {
-                key: Some(commands_proto::fr_key::Key::StringKey(key.to_string())),
+                key: Some(cache_fr_client::commands_proto::fr_key::Key::StringKey(
+                    key.to_string(),
+                )),
             }),
             value: Some(FrValue {
-                value: Some(commands_proto::fr_value::Value::AtomicValue(
-                    AtomicFrValue {
-                        value: Some(commands_proto::atomic_fr_value::Value::IntValue(
-                            value as i32,
-                        )),
-                    },
-                )),
+                value: Some(
+                    cache_fr_client::commands_proto::fr_value::Value::AtomicValue(AtomicFrValue {
+                        value: Some(
+                            cache_fr_client::commands_proto::atomic_fr_value::Value::IntValue(
+                                value as i32,
+                            ),
+                        ),
+                    }),
+                ),
                 expiry_timestamp_micros: 1,
             }),
             only_if_not_exists: false,
             return_value: false,
-        });
+        };
 
         let stopwatch_server = Stopwatch::start_new();
 
-        let _ = client.set(request).await?;
+        let _ = pool.set(request).await?;
 
         total_server_time_micro += stopwatch_server.elapsed().as_micros();
     }
