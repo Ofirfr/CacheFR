@@ -7,7 +7,6 @@ extern crate stopwatch;
 use r2d2_redis::redis::Commands;
 use r2d2_redis::{r2d2::Pool, RedisConnectionManager};
 use rand::Rng;
-use std::sync::Arc;
 use std::thread;
 use stopwatch::Stopwatch;
 

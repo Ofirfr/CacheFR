@@ -1,10 +1,7 @@
 use cache_fr_client::{
-    commands_proto::commands_client::CommandsClient,
     commands_proto::{AtomicFrValue, FrKey, FrValue, SetRequest},
     CommandsClientPool,
 };
-use rand::Rng;
-use std::sync::{Arc, Mutex};
 use stopwatch::Stopwatch;
 
 pub mod commands_proto {
