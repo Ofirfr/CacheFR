@@ -68,7 +68,7 @@ impl CommandsClientPool {
     }
 
     pub async fn set(&self, request: SetRequest) -> Result<FrResponse, Box<dyn Error>> {
-        let mut conn: PooledConnection<'_, TonicConnectionManager> = self.pool.get().await?;
+        let conn: PooledConnection<'_, TonicConnectionManager> = self.pool.get().await?;
         let mut client = CommandsClient::new(conn.clone());
 
         let request = tonic::Request::new(request);
